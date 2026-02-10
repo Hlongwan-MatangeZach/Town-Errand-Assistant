@@ -76,7 +76,7 @@ export default function SplashScreen() {
       if (isFirstLaunch) {
         router.replace('/onboarding/transport');
       } else {
-        router.replace('/home/home');
+        router.replace('/auth/auth');
       }
     }, 3500);
 
