@@ -4,12 +4,9 @@
  * Centralized design system for the application.
  *
  * Usage:
- *   import { theme } from '@/theme';           // light theme (default)
+ *   import { theme } from '@/theme';            // light theme (default)
  *   import { themes } from '@/theme';           // { light, dark }
  *   import { Colors, Fonts, Gradients } from '@/theme';
- *
- * With a hook (example):
- *   const { colors, fonts, gradients } = useTheme();
  */
 
 import { Platform } from 'react-native';
@@ -38,16 +35,29 @@ const palette = {
   gray800: '#1F2937',
   gray900: '#111827',
 
-  // Blue
+  // Blue (Primary)
   blue400: '#60A5FA',
   blue500: '#3B82F6',
   blue600: '#2563EB',
   blue800: '#1E40AF',
 
+  // Purple (Secondary) — complements blue nicely while staying “cool”
+  purple300: '#C4B5FD',
+  purple400: '#A78BFA',
+  purple500: '#8B5CF6',
+  purple600: '#7C3AED',
+  purple800: '#5B21B6',
+
+  // Emerald (Tertiary) — distinct from blue and good for “positive/semantic” moments
+  emerald400: '#34D399',
+  emerald500: '#10B981',
+  emerald600: '#059669',
+  emerald800: '#065F46',
+
   // Sky
   sky50: '#F0F9FF',
 
-  // Semantic
+  // Semantic (kept for compatibility with existing usage)
   green600: '#059669',
   amber500: '#F59E0B',
   red500: '#EF4444',
@@ -77,11 +87,22 @@ const lightColors = {
   textMuted: palette.gray400,
   textOnPrimary: palette.white,
   textInverse: palette.white,
+  textOnSecondary: palette.white,
+  textOnTertiary: palette.white,
 
   // ── Brand / accent ──
   primary: palette.blue500,
   primaryAlt: palette.blue400,
   primaryDark: palette.blue600,
+
+  secondary: palette.purple500,
+  secondaryAlt: palette.purple400,
+  secondaryDark: palette.purple600,
+
+  tertiary: palette.emerald500,
+  tertiaryAlt: palette.emerald400,
+  tertiaryDark: palette.emerald600,
+
   link: palette.blue500,
   tint: palette.blue500,
 
@@ -100,7 +121,7 @@ const lightColors = {
   overlay: palette.overlayLight,
 
   // ── Status ──
-  success: palette.green600,
+  success: palette.emerald600,
   warning: palette.amber500,
   danger: palette.red500,
 
@@ -124,11 +145,22 @@ const darkColors = {
   textMuted: palette.gray500,
   textOnPrimary: palette.white,
   textInverse: palette.gray900,
+  textOnSecondary: palette.white,
+  textOnTertiary: palette.gray900, // emerald400 is bright; dark text reads better
 
   // ── Brand / accent ──
   primary: palette.blue400,
   primaryAlt: palette.blue500,
   primaryDark: palette.blue600,
+
+  secondary: palette.purple300,
+  secondaryAlt: palette.purple400,
+  secondaryDark: palette.purple500,
+
+  tertiary: palette.emerald400,
+  tertiaryAlt: palette.emerald500,
+  tertiaryDark: palette.emerald600,
+
   link: palette.blue400,
   tint: palette.blue400,
 
@@ -147,7 +179,7 @@ const darkColors = {
   overlay: palette.overlayDark,
 
   // ── Status ──
-  success: palette.green600,
+  success: palette.emerald500,
   warning: palette.amber500,
   danger: palette.red500,
 
@@ -168,10 +200,18 @@ export const Colors = {
 // ════════════════════════════════════════════════
 
 export const Gradients = {
+  // Existing
   primary: [palette.blue500, palette.blue400] as const,
   taxiCard: [palette.blue500, palette.blue400] as const,
   modalCard: [palette.white, palette.gray100] as const,
   darkCard: [palette.gray800, palette.gray700] as const,
+
+  // New (at least 4)
+  secondary: [palette.purple600, palette.purple400] as const,
+  tertiary: [palette.emerald600, palette.emerald400] as const,
+  success: [palette.emerald800, palette.emerald400] as const,
+  sunset: [palette.amber500, palette.red500] as const,
+  ocean: [palette.blue600, palette.emerald500] as const,
 } as const;
 
 // ════════════════════════════════════════════════
@@ -194,8 +234,7 @@ export const Fonts = Platform.select({
   web: {
     sans: "system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif",
     serif: "Georgia, 'Times New Roman', serif",
-    rounded:
-      "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
+    rounded: "'SF Pro Rounded', 'Hiragino Maru Gothic ProN', Meiryo, 'MS PGothic', sans-serif",
     mono: "SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace",
   },
   default: {
