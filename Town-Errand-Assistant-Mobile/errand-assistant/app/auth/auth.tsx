@@ -264,7 +264,7 @@ const styles = StyleSheet.create({
   },
   forgotPasswordContainer: {
     alignItems: 'flex-end',
-    marginTop: 4,
+    marginTop: -2,
   },
   forgotPasswordText: {
     color: themes.light.colors.primary,
