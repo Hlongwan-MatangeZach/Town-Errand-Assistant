@@ -186,7 +186,6 @@ export default function AddCardModel({
                             onChangeText={setBarcode}
                             style={[styles.input, { flex: 1 }]}
                             placeholderTextColor={themes.light.colors.textSecondary}
-                            keyboardType='number-pad'
                             returnKeyType='done'
                         />
                         <Pressable onPress={handleScanBarcode} style={styles.scanBtn}>
