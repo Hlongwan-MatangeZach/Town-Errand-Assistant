@@ -1,8 +1,11 @@
 import { themes } from '@/constants/theme';
+import { GeminiService } from '@/service/geminiService';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import {
+  ActivityIndicator,
+  Alert,
   Dimensions,
   Platform,
   Pressable,
@@ -34,6 +37,13 @@ interface Item {
 }
 
 //DATA 
+const MEAL_FOCUS: Item[] = [
+  { id: 'all', label: 'All Meals', icon: 'food-variant', color: '#F2994A' },
+  { id: 'breakfast', label: 'Breakfast', icon: 'egg-fried', color: '#FFC107' },
+  { id: 'dinners', label: 'Dinners', icon: 'silverware-fork-knife', color: '#4CAF50' },
+  { id: 'lunchbox', label: 'Lunchbox', icon: 'bag-personal', color: '#03A9F4' },
+  { id: 'braai', label: 'Braai', icon: 'fire', color: '#E17A47' },
+];
 
 const ShoppingCategory: Category[] = [
   { id: 'groceries', name: 'Groceries', icon: 'basket', label: 'required', color: '#F2994A', required: true },
@@ -65,181 +75,273 @@ export default function AiGroceryScreen() {
   const [budgetAmount, setBudgetAmount] = useState('');
   const [familySize, setFamilySize] = useState('');
   const [focusedInput, setFocusedInput] = useState<'budget' | 'family' | null>(null);
-  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(
+    ShoppingCategory.filter(c => c.required).map(c => c.id)
+  );
   const [selectedDietaryRestrictions, setSelectedDietaryRestrictions] = useState<string[]>([]);
+  const [selectedMealFocus, setSelectedMealFocus] = useState<string[]>(['all']);
   const [loading, setLoading] = useState(false);
   const [generatedItems, setGeneratedItems] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
 
   const toggleCategory = (id: string, required?: boolean) => {
-    if (required) return; // Cannot unselect required items
+    if (required) return;
     setSelectedCategories((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
   };
 
-    const toggleDietary = (id: string) => {
+  const toggleDietary = (id: string) => {
     setSelectedDietaryRestrictions((prev) =>
       prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
     );
+  };
+
+  const toggleMealFocus = (id: string) => {
+    setSelectedMealFocus((prev) => {
+      if (id === 'all') return ['all'];
+
+      let next = prev.filter(item => item !== 'all');
+      if (next.includes(id)) {
+        next = next.filter(item => item !== id);
+        return next.length === 0 ? ['all'] : next;
+      } else {
+        return [...next, id];
+      }
+    });
+  };
+
+  const handleGenerateList = async () => {
+    if (!budgetAmount || !familySize) {
+      Alert.alert("Missing Information", "Please enter your budget and family size.");
+      return;
+    }
+
+    try {
+      setLoading(true);
+
+      const dietaryNames = selectedDietaryRestrictions.map(id => DietaryRestrictions.find(d => d.id === id)?.label || id);
+      const categoryNames = selectedCategories.map(id => ShoppingCategory.find(c => c.id === id)?.name || id);
+      const mealFocusLabels = selectedMealFocus.map(id => MEAL_FOCUS.find(m => m.id === id)?.label || id).join(", ");
+
+      const prefs = {
+        budget: budgetAmount,
+        familySize: familySize,
+        mealType: mealFocusLabels,
+        diet: dietaryNames,
+        categories: categoryNames,
+        customRequest: notes,
+      };
+
+      const result = await GeminiService.generateGroceryList(prefs);
+
+      router.push({
+        pathname: '/grocery/aiResults',
+        params: { resultData: JSON.stringify(result) }
+      });
+
+    } catch (error: any) {
+      console.error("AI Error:", error);
+      Alert.alert("Error generating list", error.message || "Please try again.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
 
     <View style={styles.container}>
       <StatusBar barStyle={'dark-content'} />
+      <ScrollView
+        showsVerticalScrollIndicator={false}>
+        {/* Header */}
+        <View style={styles.header}>
+          <Pressable onPress={() => router.back()}>
+            <MaterialCommunityIcons name='arrow-left' size={24} color={themes.light.colors.text} />
+          </Pressable>
+          <Text style={styles.title}>AI Grocery Assistant</Text>
 
-      {/* Header */}
-      <View style={styles.header}>
-        <Pressable onPress={() => router.back()}>
-          <MaterialCommunityIcons name='arrow-left' size={24} color={themes.light.colors.text} />
-        </Pressable>
-        <Text style={styles.title}>AI Grocery Assistant</Text>
+          {/* Invisible spacer to perfectly center the title if needed, or just let it flex */}
+          <View style={{ width: 24 }} />
+          <Ionicons name='sparkles' size={24} color={themes.light.colors.primary} />
 
-        {/* Invisible spacer to perfectly center the title if needed, or just let it flex */}
-        <View style={{ width: 24 }} />
-        <Ionicons name='sparkles' size={24} color={themes.light.colors.primary} />
-
-      </View>
-
-      {/* Essential Content*/}
-      <View style={styles.essentialContainer}>
-        <Text style={styles.essentialTitle}>Essentials</Text>
-
-        <View style={styles.essentialWrapper}>
-          <View style={[styles.inputContainer, focusedInput === 'budget' && styles.inputContainerActive]}>
-            <Ionicons
-              name='wallet-outline'
-              size={20}
-              color={focusedInput === 'budget' ? themes.light.colors.primary : (themes.light.colors.textSecondary || '#666')}
-            />
-            <TextInput
-              style={styles.textInput}
-              placeholder="Budget (R)"
-              placeholderTextColor={themes.light.colors.textSecondary}
-              keyboardType="numeric"
-              value={budgetAmount}
-              onChangeText={setBudgetAmount}
-              onFocus={() => setFocusedInput('budget')}
-              onBlur={() => setFocusedInput(null)}
-            />
-          </View>
-
-          <View style={[styles.inputContainer, focusedInput === 'family' && styles.inputContainerActive]}>
-            <Ionicons
-              name="people-outline"
-              size={20}
-              color={focusedInput === 'family' ? themes.light.colors.primary : (themes.light.colors.textSecondary || '#666')}
-            />
-            <TextInput
-              style={styles.textInput}
-              placeholder="Family Size"
-              placeholderTextColor={themes.light.colors.textSecondary}
-              keyboardType="numeric"
-              value={familySize}
-              onChangeText={setFamilySize}
-              onFocus={() => setFocusedInput('family')}
-              onBlur={() => setFocusedInput(null)}
-            />
-          </View>
         </View>
 
-      </View>
+        {/* Essential Content*/}
+        <View style={styles.essentialContainer}>
+          <Text style={styles.essentialTitle}>Essentials</Text>
 
-      {/*Shopping Category*/}
-      <View style={styles.categoryContainer}>
-        <Text style={styles.categoryTitle}>Shopping Categories</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+          <View style={styles.essentialWrapper}>
+            <View style={[styles.inputContainer, focusedInput === 'budget' && styles.inputContainerActive]}>
+              <Ionicons
+                name='wallet-outline'
+                size={20}
+                color={focusedInput === 'budget' ? themes.light.colors.primary : (themes.light.colors.textSecondary || '#666')}
+              />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Budget (R)"
+                placeholderTextColor={themes.light.colors.textSecondary}
+                keyboardType="numeric"
+                value={budgetAmount}
+                onChangeText={setBudgetAmount}
+                onFocus={() => setFocusedInput('budget')}
+                onBlur={() => setFocusedInput(null)}
+              />
+            </View>
 
-          {(() => {
-            const cat = ShoppingCategory[0]; // groceries
-            const isSelected = selectedCategories.includes(cat.id);
-            return (
-              <Pressable
-                key={cat.id}
-                onPress={() => toggleCategory(cat.id, cat.required)}
-                style={[
-                  styles.gridItem,
-                  styles.gridItemLarge,
-                  isSelected && styles.gridItemSelected,
-                ]}
-              >
-                {isSelected && (
-                  <View style={styles.checkBadge}>
-                    <Ionicons name="checkmark" size={10} color="#FFF" />
-                  </View>
-                )}
-                <View style={styles.gridIconContainer}>
-                  <Text style={{ fontSize: 40 }}>🧺</Text>
-                </View>
-                <Text style={styles.gridLabel}>{cat.name}</Text>
-                {cat.label && (
-                  <Text style={styles.gridSubLabel}>{cat.label}</Text>
-                )}
-              </Pressable>
-            );
-          })()}
+            <View style={[styles.inputContainer, focusedInput === 'family' && styles.inputContainerActive]}>
+              <Ionicons
+                name="people-outline"
+                size={20}
+                color={focusedInput === 'family' ? themes.light.colors.primary : (themes.light.colors.textSecondary || '#666')}
+              />
+              <TextInput
+                style={styles.textInput}
+                placeholder="Family Size"
+                placeholderTextColor={themes.light.colors.textSecondary}
+                keyboardType="numeric"
+                value={familySize}
+                onChangeText={setFamilySize}
+                onFocus={() => setFocusedInput('family')}
+                onBlur={() => setFocusedInput(null)}
+              />
+            </View>
+          </View>
 
-          {/* Other Categories - Grouped in columns of 2 */}
-          {Array.from({ length: Math.ceil((ShoppingCategory.length - 1) / 2) }).map((_, colIndex) => (
-            <View key={`col-${colIndex}`} style={{ gap: 5 }}>
-              {ShoppingCategory.slice(1 + colIndex * 2, 1 + colIndex * 2 + 2).map((cat) => {
-                const isSelected = selectedCategories.includes(cat.id);
-                return (
-                  <Pressable
-                    key={cat.id}
-                    onPress={() => toggleCategory(cat.id, cat.required)}
+        </View>
+
+        {/*Meal Focus*/}
+        <View style={styles.mealContainer}>
+          <Text style={styles.mealTitle}>Meal Focus</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+            {MEAL_FOCUS.map((focus) => {
+              const isSelected = selectedMealFocus.includes(focus.id);
+              return (
+                <Pressable
+                  key={focus.id}
+                  onPress={() => toggleMealFocus(focus.id)}
+                  style={[
+                    styles.chip,
+                    isSelected && styles.chipSelected,
+                  ]}
+                >
+                  {focus.icon && (
+                    <MaterialCommunityIcons
+                      name={focus.icon}
+                      size={16}
+                      color={isSelected ? '#FFF' : focus.color}
+                      style={{ marginRight: 6 }}
+                    />
+                  )}
+                  <Text
                     style={[
-                      styles.gridItem,
-                      isSelected && styles.gridItemSelected,
+                      styles.chipText,
+                      isSelected ? styles.chipTextWhite : styles.chipTextDark,
                     ]}
                   >
-                    {isSelected && (
-                      <View style={styles.checkBadge}>
-                        <Ionicons name="checkmark" size={10} color='transparent' />
-                      </View>
-                    )}
-                    <View style={styles.gridIconContainer}>
-                      <MaterialCommunityIcons
-                        name={cat.icon}
-                        size={38}
-                        color={isSelected ? cat.color : `${cat.color}99`} // Use category color directly (slightly transparent if not selected)
-                      />
+                    {focus.label}
+                  </Text>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
+
+        {/*Shopping Category*/}
+        <View style={styles.categoryContainer}>
+          <Text style={styles.categoryTitle}>Shopping Categories</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+
+            {(() => {
+              const cat = ShoppingCategory[0]; // groceries
+              const isSelected = selectedCategories.includes(cat.id);
+              return (
+                <Pressable
+                  key={cat.id}
+                  onPress={() => toggleCategory(cat.id, cat.required)}
+                  style={[
+                    styles.gridItem,
+                    styles.gridItemLarge,
+                    isSelected && styles.gridItemSelected,
+                  ]}
+                >
+                  {isSelected && (
+                    <View style={styles.checkBadge}>
+                      <Ionicons name="checkmark" size={10} color="#FFF" />
                     </View>
-                    <Text style={styles.gridLabel}>{cat.name}</Text>
-                    {cat.label && (
-                      <Text style={styles.gridSubLabel}>{cat.label}</Text>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </View>
-          ))}
+                  )}
+                  <View style={styles.gridIconContainer}>
+                    <Text style={{ fontSize: 40 }}>🧺</Text>
+                  </View>
+                  <Text style={styles.gridLabel}>{cat.name}</Text>
+                  {cat.label && (
+                    <Text style={styles.gridSubLabel}>{cat.label}</Text>
+                  )}
+                </Pressable>
+              );
+            })()}
+
+            {/* Other Categories - Grouped in columns of 2 */}
+            {Array.from({ length: Math.ceil((ShoppingCategory.length - 1) / 2) }).map((_, colIndex) => (
+              <View key={`col-${colIndex}`} style={{ gap: 5 }}>
+                {ShoppingCategory.slice(1 + colIndex * 2, 1 + colIndex * 2 + 2).map((cat) => {
+                  const isSelected = selectedCategories.includes(cat.id);
+                  return (
+                    <Pressable
+                      key={cat.id}
+                      onPress={() => toggleCategory(cat.id, cat.required)}
+                      style={[
+                        styles.gridItem,
+                        isSelected && styles.gridItemSelected,
+                      ]}
+                    >
+                      {isSelected && (
+                        <View style={styles.checkBadge}>
+                          <Ionicons name="checkmark" size={10} color='transparent' />
+                        </View>
+                      )}
+                      <View style={styles.gridIconContainer}>
+                        <MaterialCommunityIcons
+                          name={cat.icon}
+                          size={38}
+                          color={isSelected ? cat.color : `${cat.color}99`} // Use category color directly (slightly transparent if not selected)
+                        />
+                      </View>
+                      <Text style={styles.gridLabel}>{cat.name}</Text>
+                      {cat.label && (
+                        <Text style={styles.gridSubLabel}>{cat.label}</Text>
+                      )}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ))}
 
 
-        </ScrollView>
-      </View>
+          </ScrollView>
+        </View>
 
-      {/*DIETRY*/}
-      <View style={styles.diertyContainer}>
-        <Text style={styles.diertyTitle}>Dietary Restrictions</Text>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
-          {DietaryRestrictions.map((restriction) => {
-            const isSelected = selectedDietaryRestrictions.includes(restriction.id);
-            return (
-              <Pressable
-                key={restriction.id}
-                onPress={() => toggleDietary(restriction.id)}
-                style={[
-                  styles.chip,
-                  isSelected && styles.chipSelected,
-                ]}
-              >
+        {/*DIETRY*/}
+        <View style={styles.diertyContainer}>
+          <Text style={styles.diertyTitle}>Dietary Restrictions</Text>
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={{ gap: 10 }}>
+            {DietaryRestrictions.map((restriction) => {
+              const isSelected = selectedDietaryRestrictions.includes(restriction.id);
+              return (
+                <Pressable
+                  key={restriction.id}
+                  onPress={() => toggleDietary(restriction.id)}
+                  style={[
+                    styles.chip,
+                    isSelected && styles.chipSelected,
+                  ]}
+                >
                   {restriction.icon && (
                     <MaterialCommunityIcons
                       name={restriction.icon}
                       size={14}
-                      color={isSelected ? restriction.color : `${restriction.color}99`} 
+                      color={isSelected ? restriction.color : `${restriction.color}99`}
                       style={{ marginRight: 6 }}
                     />
                   )}
@@ -251,33 +353,43 @@ export default function AiGroceryScreen() {
                   >
                     {restriction.label}
                   </Text>
-              </Pressable>
-            );
-          })}
-        </ScrollView>
-      </View>
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
 
-      {/*Notes */}
-      <View style={styles.notesContainer}>
-        <Text style={styles.notesTitle}>Notes</Text>
-        <TextInput
-          style={styles.notesInput}
-          placeholder='No spicey food , allegic to nuts ...'
-          placeholderTextColor={themes.light.colors.textSecondary}
-          multiline
-          value={notes}
-          onChangeText={setNotes}
-        />
-      </View>
+        {/*Notes */}
+        <View style={styles.notesContainer}>
+          <Text style={styles.notesTitle}>Notes</Text>
+          <TextInput
+            style={styles.notesInput}
+            placeholder='No spicey food , allegic to nuts ...'
+            placeholderTextColor={themes.light.colors.textSecondary}
+            multiline
+            value={notes}
+            onChangeText={setNotes}
+          />
+        </View>
 
-      {/*Submit Button*/}
-      <View style={styles.submitContainer}> 
-      <Pressable onPress={router.push('/grocery/aiResults')} style={styles.submitButton}
-      >
-              <Text style={styles.btnText}>Create List</Text>
-              <MaterialCommunityIcons name="creation" size={20} color="#FFF" style={{ marginLeft: 8 }} />     
-               </Pressable>
-      </View>
+        {/*Submit Button*/}
+        <View style={styles.submitContainer}>
+          <Pressable
+            onPress={handleGenerateList}
+            style={[styles.submitButton, loading && { opacity: 0.7 }]}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#FFF" />
+            ) : (
+              <>
+                <Text style={styles.btnText}>Create List</Text>
+                <MaterialCommunityIcons name="creation" size={20} color="#FFF" style={{ marginLeft: 8 }} />
+              </>
+            )}
+          </Pressable>
+        </View>
+      </ScrollView>
 
 
 
@@ -316,6 +428,16 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   essentialTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: themes.light.colors.text,
+    marginBottom: 12,
+  },
+  mealContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+  },
+  mealTitle: {
     fontSize: 18,
     fontWeight: '700',
     color: themes.light.colors.text,
@@ -436,7 +558,7 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '700',
     color: themes.light.colors.text,
-    marginBottom: 12,
+    marginBottom: 10,
   },
   chip: {
     flexDirection: 'row',
@@ -487,12 +609,12 @@ const styles = StyleSheet.create({
     minHeight: 100,
     maxHeight: 200,
     overflow: 'scroll',
-    marginBottom: 10,
+    marginBottom: 12,
   },
   submitContainer: {
     paddingHorizontal: 16,
     paddingVertical: 12,
-    marginBottom: 20,
+    marginBottom: 10,
     elevation: 5,
     shadowColor: themes.light.colors.primaryAlt,
     shadowOffset: { width: 0, height: 4 },
@@ -505,9 +627,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 8,
-    padding: 12,
+    padding: 9,
     borderRadius: 30,
     backgroundColor: themes.light.colors.primary,
+    marginBottom: 20,
   },
   btnText: {
     fontSize: 16,
