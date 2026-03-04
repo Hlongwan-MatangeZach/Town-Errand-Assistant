@@ -2,11 +2,14 @@ import { themes } from '@/constants/theme';
 import { GeminiService } from '@/service/geminiService';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
+  Animated,
   Dimensions,
+  Easing,
+  Modal,
   Platform,
   Pressable,
   ScrollView,
@@ -81,8 +84,65 @@ export default function AiGroceryScreen() {
   const [selectedDietaryRestrictions, setSelectedDietaryRestrictions] = useState<string[]>([]);
   const [selectedMealFocus, setSelectedMealFocus] = useState<string[]>(['all']);
   const [loading, setLoading] = useState(false);
+  const [loadingMessage, setLoadingMessage] = useState('Planning your list...');
   const [generatedItems, setGeneratedItems] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
+
+  // Animation for header sparkles
+  const spinValue = useRef(new Animated.Value(0)).current;
+  const pulseValue = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (loading) {
+      // Spin animation
+      Animated.loop(
+        Animated.timing(spinValue, {
+          toValue: 1,
+          duration: 2000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        })
+      ).start();
+
+      // Pulse animation
+      Animated.loop(
+        Animated.sequence([
+          Animated.timing(pulseValue, {
+            toValue: 1,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseValue, {
+            toValue: 0,
+            duration: 1000,
+            easing: Easing.inOut(Easing.ease),
+            useNativeDriver: true,
+          })
+        ])
+      ).start();
+    } else {
+      spinValue.setValue(0);
+      spinValue.stopAnimation();
+      pulseValue.setValue(0);
+      pulseValue.stopAnimation();
+    }
+  }, [loading]);
+
+  const spin = spinValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
+
+  const pulseScale = pulseValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [1, 1.8],
+  });
+
+  const pulseOpacity = pulseValue.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0.6, 0],
+  });
 
   const toggleCategory = (id: string, required?: boolean) => {
     if (required) return;
@@ -133,7 +193,9 @@ export default function AiGroceryScreen() {
         customRequest: notes,
       };
 
-      const result = await GeminiService.generateGroceryList(prefs);
+      const result = await GeminiService.generateGroceryList(prefs, (msg) => {
+        setLoadingMessage(msg);
+      });
 
       router.push({
         pathname: '/grocery/aiResults',
@@ -163,7 +225,10 @@ export default function AiGroceryScreen() {
 
           {/* Invisible spacer to perfectly center the title if needed, or just let it flex */}
           <View style={{ width: 24 }} />
-          <Ionicons name='sparkles' size={24} color={themes.light.colors.primary} />
+          {/* Animated sparkles in header */}
+          <Animated.View style={{ transform: [{ rotate: spin }] }}>
+            <Ionicons name='sparkles' size={24} color={themes.light.colors.primary} />
+          </Animated.View>
 
         </View>
 
@@ -391,7 +456,33 @@ export default function AiGroceryScreen() {
         </View>
       </ScrollView>
 
-
+      {/* Custom AI Loading Overlay */}
+      <Modal visible={loading} transparent animationType="fade">
+        <View style={styles.loadingOverlay}>
+          <View style={styles.loadingCard}>
+            <View style={styles.loadingAnimationContainer}>
+              <Animated.View
+                style={[
+                  styles.loadingPulse,
+                  {
+                    transform: [{ scale: pulseScale }],
+                    opacity: pulseOpacity,
+                  }
+                ]}
+              />
+              <Animated.View style={{ transform: [{ rotate: spin }] }}>
+                <Ionicons name="sparkles" size={40} color={themes.light.colors.primary} />
+              </Animated.View>
+            </View>
+            <Text style={styles.loadingTitle}>Smart Planning</Text>
+            <Text style={styles.loadingSubtitle}>{loadingMessage}</Text>
+            <View style={styles.loadingBarContainer}>
+              <View style={styles.loadingBar} />
+            </View>
+            <Text style={styles.loadingFooter}>Gemini is crafting a custom grocery list for your family.</Text>
+          </View>
+        </View>
+      </Modal>
 
     </View>
 
@@ -482,7 +573,7 @@ const styles = StyleSheet.create({
   },
   gridItem: {
     width: ITEM_WIDTH + 5,
-    height: ITEM_WIDTH + 5, // Make it square
+    height: ITEM_WIDTH + 5,
     borderRadius: 16,
     borderWidth: 1,
     borderColor: '#E0E0E0',
@@ -492,7 +583,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   gridItemLarge: {
-    width: ITEM_WIDTH + 5, // Double width for the big one
+    width: ITEM_WIDTH + 5,
     height: ITEM_WIDTH * 2 + GRID_GAP,
   },
   gridItemSelected: {
@@ -640,5 +731,72 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     justifyContent: 'center',
     alignItems: 'center',
+  },
+  loadingOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+  },
+  loadingCard: {
+    width: '100%',
+    backgroundColor: '#FFF',
+    borderRadius: 24,
+    padding: 32,
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.2,
+    shadowRadius: 20,
+    elevation: 10,
+  },
+  loadingAnimationContainer: {
+    width: 50,
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 20,
+    position: 'relative',
+  },
+  loadingPulse: {
+    position: 'absolute',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: `${themes.light.colors.primary}20`,
+  },
+  loadingTitle: {
+    fontSize: 22,
+    fontWeight: '800',
+    color: themes.light.colors.text,
+    marginBottom: 8,
+  },
+  loadingSubtitle: {
+    fontSize: 16,
+    color: themes.light.colors.primary,
+    fontWeight: '600',
+    marginBottom: 24,
+    textAlign: 'center',
+  },
+  loadingBarContainer: {
+    width: '100%',
+    height: 6,
+    backgroundColor: '#F0F0F0',
+    borderRadius: 3,
+    marginBottom: 20,
+    overflow: 'hidden',
+  },
+  loadingBar: {
+    width: '60%',
+    height: '100%',
+    backgroundColor: themes.light.colors.primary,
+    borderRadius: 3,
+  },
+  loadingFooter: {
+    fontSize: 13,
+    color: themes.light.colors.textSecondary,
+    textAlign: 'center',
+    lineHeight: 18,
   },
 });
