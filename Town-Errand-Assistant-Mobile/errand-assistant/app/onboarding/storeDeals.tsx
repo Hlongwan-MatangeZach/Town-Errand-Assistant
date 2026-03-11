@@ -32,7 +32,7 @@ export default function Deals() {
       nextLabel="Get Started"
       onSkip={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        router.push("/home/home");
+        router.push("/auth/auth");
       }}
       onBack={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
@@ -40,7 +40,7 @@ export default function Deals() {
       }}
       onNext={() => {
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-        router.push("/home/home");
+        router.push("/auth/auth");
       }}
     />
   );

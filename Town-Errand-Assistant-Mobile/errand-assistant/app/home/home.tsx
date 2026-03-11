@@ -103,7 +103,7 @@ export default function HomeScreen() {
         </View>
 
         <View style={styles.gridWrapper}>
-          <Pressable style={[styles.gridCard, { backgroundColor: '#5AD99C' }]} onPress={() => router.push("/grocery-assistant")}
+          <Pressable style={[styles.gridCard, { backgroundColor: '#5AD99C' }]} onPress={() => router.push("/grocery/myBasket")}
             accessibilityLabel='Grocery Assistant Card'
             accessibilityHint='Open to Grocery Assistant feature'
             accessibilityRole='button'
@@ -117,7 +117,7 @@ export default function HomeScreen() {
             <Text style={styles.gridCardSubtitle}>Get help with grocery shopping and budget management.</Text>
           </Pressable>
 
-          <Pressable style={[styles.gridCard, { backgroundColor: '#8FC2FF' }]} onPress={() => router.push("/shopping-cards")}
+          <Pressable style={[styles.gridCard, { backgroundColor: '#8FC2FF' }]} onPress={() => router.push("/wallet/myCards")}
             accessibilityLabel='Grocery Assistant Card'
             accessibilityHint='Open to Grocery Assistant feature'
             accessibilityRole='button'

@@ -18,25 +18,25 @@ import Animated, {
 
 const AnimatedLinearGradient = createAnimatedComponent(LinearGradient);
 
-const {width}= Dimensions.get('window');
+const { width } = Dimensions.get('window');
 
 export default function SplashScreen() {
-  const router= useRouter();
+  const router = useRouter();
   // check if the useer is the firsst time the open our app
-  const [isFirstLaunch, setIsFirstLaunch] =useState<boolean | null>(null);
+  const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
 
   //logo animation
-  const scale= useSharedValue(0);
-  const float= useSharedValue(0);
+  const scale = useSharedValue(0);
+  const float = useSharedValue(0);
 
   //loading dots 
-  const dot1= useSharedValue(0);
-  const dot2= useSharedValue(0);
-  const dot3= useSharedValue(0);
+  const dot1 = useSharedValue(0);
+  const dot2 = useSharedValue(0);
+  const dot3 = useSharedValue(0);
 
   useEffect(() => {
     const checkFirstLaunch = async () => {
-      try{
+      try {
         const hasLaunched = await AsyncStorage.getItem('@app_has_launched');
         if (hasLaunched === null) {
           await AsyncStorage.setItem('@app_has_launched', 'true');
@@ -44,13 +44,15 @@ export default function SplashScreen() {
         } else {
           setIsFirstLaunch(false);
         }
-      }catch(error){
+      } catch (error) {
         console.log(error);
-        setIsFirstLaunch(false);
+        console.error("Error checking first launch:", error);
+
+        setIsFirstLaunch(true);
       }
     };
     checkFirstLaunch();
-    
+
   }, []);
 
   useEffect(() => {
@@ -62,21 +64,21 @@ export default function SplashScreen() {
 
     //loading dots
     dot1.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
-    setTimeout(()=>{
-    dot2.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
+    setTimeout(() => {
+      dot2.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
 
-    },150);
-    setTimeout(()=>{
-    dot3.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
+    }, 150);
+    setTimeout(() => {
+      dot3.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
 
-    },300);
+    }, 300);
 
     //navigate after 3 seconds
     const timer = setTimeout(() => {
       if (isFirstLaunch) {
-        router.replace('/onboarding/transport');
+        router.push('/onboarding/transport');
       } else {
-        router.replace('/auth/auth');
+        router.push('/auth/auth');
       }
     }, 3500);
 
@@ -87,18 +89,18 @@ export default function SplashScreen() {
     transform: [{ scale: scale.value }, { translateY: float.value }],
   }));
 
-  const dotStyle = (dot: any) => 
+  const dotStyle = (dot: any) =>
     useAnimatedStyle(() => ({
-    opacity: dot.value,
-    transform: [{ translateY: dot.value ? -4: 0}],
+      opacity: dot.value,
+      transform: [{ translateY: dot.value ? -4 : 0 }],
 
-  }));
+    }));
 
- 
+
   return (
     <LinearGradient
       colors={["#F0F9FF", "#E0F2FE", "#FEF3C7"]}
-      style={styles.container }>
+      style={styles.container}>
       {/* Decorative circles */}
       <View style={[styles.circle, styles.circleBig]} />
       <View style={[styles.circle, styles.circleSmall]} />

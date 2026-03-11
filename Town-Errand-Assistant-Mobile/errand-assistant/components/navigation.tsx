@@ -65,7 +65,7 @@ const Navigation = memo(function Navigation() {
     () => [
       { key: 'home', label: 'Home', icon: 'home', path: '/home/home' },
       { key: 'transport', label: 'Taxi', icon: 'car', path: '/transport/taxiCalculator' },
-      { key: 'grocery', label: 'Shop', icon: 'basket', path: '/grocery/groceryPlanning' },
+      { key: 'grocery', label: 'Shop', icon: 'basket', path: '/grocery/myBasket' },
       { key: 'wallet', label: 'Cards', icon: 'card', path: '/wallet/myCards' },
       { key: 'profile', label: 'Profile', icon: 'person', path: '/profile/profile' },
     ],
