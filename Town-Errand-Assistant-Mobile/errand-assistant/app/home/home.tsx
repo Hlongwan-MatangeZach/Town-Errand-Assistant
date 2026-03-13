@@ -5,7 +5,7 @@ import { themes } from '@/constants/theme';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from "expo-router";
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Dimensions,
   Platform,
@@ -16,15 +16,29 @@ import {
   TextInput,
   View
 } from "react-native";
-
+import { useUser } from '@/context/UserContext';
+import UsernameModal from '@/components/ui/UsernameModal';
 
 const { width } = Dimensions.get("window");
 
 
 export default function HomeScreen() {
   const router = useRouter();
-  const [userName, setUserName] = useState<string>("User");
+  const { username, updateUsername, isGuest, isLoading } = useUser();
   const [query, setQuery] = useState("");
+  const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    // Show modal if user is guest and username is default or empty
+    if (!isLoading && isGuest && (username === 'User' || username.trim() === '')) {
+      setShowModal(true);
+    }
+  }, [isLoading, isGuest, username]);
+
+  const handleSaveUsername = async (name: string) => {
+    await updateUsername(name);
+    setShowModal(false);
+  };
 
 
 
@@ -36,12 +50,12 @@ export default function HomeScreen() {
         contentContainerStyle={styles.scrollContainer}>
 
         {/*header*/}
-        <HomeHeader onProfilePress={() => router.push("/profile")} />
+        <HomeHeader onProfilePress={() => router.push("/profile/profile")} />
 
         {/**Welcome section */}
         <View style={styles.welcomeSection}>
           <View style={styles.welcomeTextContainer}>
-            <Text style={styles.welcomeText}>Hello, {userName} ! 👋</Text>
+            <Text style={styles.welcomeText}>Hello, {username} ! 👋</Text>
             <Text style={styles.taglineInline}>
               Manage your trips, shopping, and budget.
             </Text>
@@ -149,6 +163,10 @@ export default function HomeScreen() {
         
       </ScrollView>
       <Navigation/>
+      <UsernameModal
+        visible={showModal}
+        onSave={handleSaveUsername}
+      />
     </View>
   );
 
