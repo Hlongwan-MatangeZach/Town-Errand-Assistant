@@ -5,7 +5,6 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   Dimensions,
   Easing,
@@ -19,6 +18,7 @@ import {
   View,
   Modal,
 } from "react-native";
+import ConfirmationModal from '@/components/ui/ConfirmationModal';
 
 // Types and Interfaces
 interface Category {
@@ -143,6 +143,12 @@ export default function AiGroceryScreen() {
   const [loadingMessage, setLoadingMessage] = useState('Planning your list...');
   const [generatedItems, setGeneratedItems] = useState<string[]>([]);
   const [notes, setNotes] = useState('');
+  const [alertModal, setAlertModal] = useState({
+    visible: false,
+    title: '',
+    message: '',
+    type: 'info' as 'danger' | 'info' | 'success'
+  });
 
   // Animation for header sparkles
   const spinValue = useRef(new Animated.Value(0)).current;
@@ -229,10 +235,12 @@ export default function AiGroceryScreen() {
 
   const handleGenerateList = async () => {
     if (!budgetAmount || !familySize) {
-      Alert.alert(
-        "Missing Information",
-        "Please enter your budget and family size.",
-      );
+      setAlertModal({
+        visible: true,
+        title: "Missing Information",
+        message: "Please enter your budget and family size.",
+        type: 'info'
+      });
       return;
     }
 
@@ -266,10 +274,12 @@ export default function AiGroceryScreen() {
       });
     } catch (error: any) {
       console.error("AI Error:", error);
-      Alert.alert(
-        "Error generating list",
-        error.message || "Please try again.",
-      );
+      setAlertModal({
+        visible: true,
+        title: "Error generating list",
+        message: error.message || "Please try again.",
+        type: 'danger'
+      });
     } finally {
       setLoading(false);
     }
@@ -590,6 +600,17 @@ export default function AiGroceryScreen() {
           </View>
         </View>
       </Modal>
+
+      <ConfirmationModal
+        visible={alertModal.visible}
+        title={alertModal.title}
+        message={alertModal.message}
+        onConfirm={() => setAlertModal(prev => ({ ...prev, visible: false }))}
+        onCancel={() => setAlertModal(prev => ({ ...prev, visible: false }))}
+        confirmText="OK"
+        type={alertModal.type}
+        showCancelButton={false}
+      />
 
     </View>
   );
