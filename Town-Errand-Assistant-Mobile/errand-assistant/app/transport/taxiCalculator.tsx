@@ -4,7 +4,6 @@ import * as Haptics from 'expo-haptics';
 import { LinearGradient } from 'expo-linear-gradient';
 import React, { useCallback, useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Pressable,
@@ -16,6 +15,7 @@ import {
   View
 } from 'react-native';
 import Navigation from '../../components/navigation';
+import ConfirmationModal from '../../components/ui/ConfirmationModal';
 
 
 const MAX_GROUPS = 10;
@@ -42,6 +42,8 @@ export default function TaxiCalculator() {
   const [payments, setPayments] = useState<PaymentEntry[]>([
     { people: '1', amount: '' },
   ]);
+  const [resetModalVisible, setResetModalVisible] = useState(false);
+  const [limitModalVisible, setLimitModalVisible] = useState(false);
 
   const fareNum = useMemo(() => parseFloat(fare) || 0, [fare]);
   const expectedTotal = useMemo(() => {
@@ -72,27 +74,23 @@ export default function TaxiCalculator() {
   }, [expectedTotal, isBalanced, balance]);
 
   const clearAll = useCallback(() => {
-    Alert.alert('Reset Trip', 'Are you sure you want to clear everything?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Reset',
-        style: 'destructive',
-        onPress: () => {
-          void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-          setSeats('');
-          setFare('');
-          setPayments([{ people: '1', amount: '' }]);
-          setTripCount((prev) => prev + 1);
-        },
-      },
-    ]);
+    setResetModalVisible(true);
+  }, []);
+
+  const confirmReset = useCallback(() => {
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    setSeats('');
+    setFare('');
+    setPayments([{ people: '1', amount: '' }]);
+    setTripCount((prev) => prev+1);
+    setResetModalVisible(false);
   }, []);
 
   const addPayment = useCallback(() => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     setPayments((prev) => {
       if (prev.length >= MAX_GROUPS) {
-        Alert.alert('Limit Reached', 'Max 10 entries');
+        setLimitModalVisible(true);
         return prev;
       }
       return [...prev, { people: '1', amount: '' }];
@@ -411,6 +409,27 @@ export default function TaxiCalculator() {
 
       </KeyboardAvoidingView>
       <Navigation />
+      
+      <ConfirmationModal
+        visible={resetModalVisible}
+        title="Reset Trip"
+        message="Are you sure you want to clear everything?"
+        onConfirm={confirmReset}
+        onCancel={() => setResetModalVisible(false)}
+        confirmText="Reset"
+        type="danger"
+      />
+
+      <ConfirmationModal
+        visible={limitModalVisible}
+        title="Limit Reached"
+        message="You can only add up to 10 passenger groups."
+        onConfirm={() => setLimitModalVisible(false)}
+        onCancel={() => setLimitModalVisible(false)}
+        confirmText="OK"
+        type="info"
+        showCancelButton={false}
+      />
     </View>
   );
 }
