@@ -21,11 +21,13 @@ import {
 import InputField from '../../components/ui/InputField';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
+import { useUser } from '@/context/UserContext';
 
 type ToggleMode = 'login' | 'signup';
 
 
 export default function AuthScreen() {
+  const { setGuestMode } = useUser();
   const [mode, setMode] = useState<ToggleMode>('login');
 
   const [showPassword, setShowPassword] = useState(false);
@@ -162,7 +164,10 @@ export default function AuthScreen() {
 
               {/*GUEST LOGIN*/}
               {isLogin && (
-                <Pressable style={styles.guestBtn} onPress={() => router.replace('/home/home')}>
+                <Pressable style={styles.guestBtn} onPress={() => {
+                  setGuestMode(true);
+                  router.replace('/home/home');
+                }}>
                   <Ionicons name="arrow-forward-outline" size={16} color={themes.light.colors.primaryAlt} />
                   <Text style={styles.guestText}>Continue as Guest</Text>
                 </Pressable>
