@@ -20,10 +20,7 @@ import ConfirmationModal from "../../components/ui/ConfirmationModal";
 import AddCard from "../../components/wallet/addCard";
 import BarcodeScanner from "../../components/wallet/BarcodeScanner";
 import CardDetailModal from "../../components/wallet/cardDetails";
-import {
-    CARDS_STORAGE_KEY,
-    USAGE_STORAGE_KEY,
-} from "../../components/wallet/constants";
+import { CARDS_STORAGE_KEY, USAGE_STORAGE_KEY, } from "../../components/wallet/constants";
 import RecentUsageList from "../../components/wallet/RecentUsageList";
 import SwipeableHeroCard from "../../components/wallet/SwipeableHeroCard";
 import { Card, UsageEntry } from "../../components/wallet/types";
@@ -171,8 +168,6 @@ export default function MyCardsScreen() {
     const toggleViewMode = () => {
         setViewMode((prev) => (prev === "cards" ? "list" : "cards"));
     };
-
-    // ─── Derived / Memoised ─────────────────────────────────────────────
 
     const orderedCards = useMemo(() => {
         return [...cards].sort((a, b) => {
@@ -690,5 +685,4 @@ const styles = StyleSheet.create({
         color: themes.light.colors.primary,
         fontWeight: "600",
     },
-
 });
