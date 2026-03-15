@@ -12,6 +12,7 @@ type ConfirmationModalProps = {
     confirmText?: string;
     cancelText?: string;
     type?: 'danger' | 'info' | 'success';
+    showCancelButton?: boolean;
 };
 
 export default function ConfirmationModal({
@@ -23,6 +24,7 @@ export default function ConfirmationModal({
     confirmText = 'Delete',
     cancelText = 'Cancel',
     type = 'danger',
+    showCancelButton = true,
 }: ConfirmationModalProps) {
 
     const getConfirmButtonStyle = () => {
@@ -66,9 +68,11 @@ export default function ConfirmationModal({
                     <Text style={styles.message}>{message}</Text>
 
                     <View style={styles.actionButtons}>
-                        <Pressable style={styles.cancelBtn} onPress={onCancel}>
-                            <Text style={styles.cancelBtnText}>{cancelText}</Text>
-                        </Pressable>
+                        {showCancelButton && (
+                            <Pressable style={styles.cancelBtn} onPress={onCancel}>
+                                <Text style={styles.cancelBtnText}>{cancelText}</Text>
+                            </Pressable>
+                        )}
 
                         <Pressable
                             style={[styles.confirmBtn, getConfirmButtonStyle()]}
