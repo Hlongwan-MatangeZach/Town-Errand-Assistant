@@ -35,55 +35,67 @@ export default function SplashScreen() {
   const dot3 = useSharedValue(0);
 
   useEffect(() => {
-    const checkFirstLaunch = async () => {
+    scale.value = withSpring(1, { damping: 10, stiffness: 100 });
+    float.value = withRepeat(withTiming(-10, { duration: 4500 }), -1, true);
+
+    dot1.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
+    const dot2Timer = setTimeout(() => {
+      dot2.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
+    }, 150);
+    const dot3Timer = setTimeout(() => {
+      dot3.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
+    }, 300);
+
+    const checkNavigation = async () => {
       try {
         const hasLaunched = await AsyncStorage.getItem('@app_has_launched');
-        if (hasLaunched === null) {
+        const isFirst = hasLaunched === null;
+        
+        if (isFirst) {
           await AsyncStorage.setItem('@app_has_launched', 'true');
           setIsFirstLaunch(true);
         } else {
           setIsFirstLaunch(false);
         }
-      } catch (error) {
-        console.log(error);
-        console.error("Error checking first launch:", error);
 
-        setIsFirstLaunch(true);
+        // 3. Check if already signed in or guest
+        const [storedName, storedGuest] = await Promise.all([
+          AsyncStorage.getItem('ea_user_name_v1'),
+          AsyncStorage.getItem('ea_is_guest_v1')
+        ]);
+
+        const hasUserData = (storedName && storedName !== 'User') || storedGuest === 'true';
+
+        const timer = setTimeout(() => {
+          if (isFirst) {
+            router.push('/onboarding/transport');
+          } else if (hasUserData) {
+            router.replace('/home/home');
+          } else {
+            router.push('/auth/auth');
+          }
+        }, 3500);
+
+        return () => {
+          clearTimeout(timer);
+          clearTimeout(dot2Timer);
+          clearTimeout(dot3Timer);
+        };
+      } catch (error) {
+        console.error("Error during checkNavigation:", error);
+        const timer = setTimeout(() => {
+          router.push('/onboarding/transport');
+        }, 3500);
+        return () => {
+          clearTimeout(timer);
+          clearTimeout(dot2Timer);
+          clearTimeout(dot3Timer);
+        };
       }
     };
-    checkFirstLaunch();
 
+    checkNavigation();
   }, []);
-
-  useEffect(() => {
-    if (isFirstLaunch === null) return;
-
-    //logo animation
-    scale.value = withSpring(1, { damping: 10, stiffness: 100 });
-    float.value = withRepeat(withTiming(-10, { duration: 4500 }), -1, true);
-
-    //loading dots
-    dot1.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
-    setTimeout(() => {
-      dot2.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
-
-    }, 150);
-    setTimeout(() => {
-      dot3.value = withRepeat(withTiming(1, { duration: 600 }), -1, true);
-
-    }, 300);
-
-    //navigate after 3 seconds
-    const timer = setTimeout(() => {
-      if (isFirstLaunch) {
-        router.push('/onboarding/transport');
-      } else {
-        router.push('/auth/auth');
-      }
-    }, 3500);
-
-    return () => clearTimeout(timer);
-  }, [isFirstLaunch]);
 
   const logoStyle = useAnimatedStyle(() => ({
     transform: [{ scale: scale.value }, { translateY: float.value }],

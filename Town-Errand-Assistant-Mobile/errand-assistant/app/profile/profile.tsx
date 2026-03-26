@@ -1,6 +1,7 @@
 import Navigation from '@/components/navigation';
 import ConfirmationModal from '@/components/ui/ConfirmationModal';
 import { themes } from '@/constants/theme';
+import { useUser } from '@/context/UserContext';
 import { Ionicons, MaterialCommunityIcons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -18,7 +19,6 @@ import {
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useUser } from '@/context/UserContext';
 
 // --- Constants & Theme ---
 const theme = themes.light;
@@ -112,7 +112,7 @@ interface BulletProps {
 export default function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { username } = useUser();
+  const { username, clearUserData } = useUser();
   const [refreshing, setRefreshing] = useState(false);
   const [shoppingCount, setShoppingCount] = useState<number>(0);
   const [cardsCount, setCardsCount] = useState<number>(0);
@@ -182,8 +182,7 @@ export default function ProfileScreen() {
 
   const confirmSignOut = async () => {
     try {
-      // Clear user data if needed
-      // await AsyncStorage.removeItem(USER_NAME_KEY);
+      await clearUserData();
       console.log('User signed out');
       setIsSignOutModalVisible(false);
       // Navigate to login or onboarding
