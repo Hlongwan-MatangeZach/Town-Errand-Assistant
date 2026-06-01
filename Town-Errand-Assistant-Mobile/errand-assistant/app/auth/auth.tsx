@@ -1,11 +1,7 @@
 import { themes } from '@/constants/theme';
 import { LinearGradient } from 'expo-linear-gradient';
 import { StatusBar } from 'expo-status-bar';
-import React, {
-  useCallback,
-  useRef,
-  useState,
-} from 'react';
+import React, { useCallback, useRef, useState } from 'react';
 import {
   Keyboard,
   KeyboardAvoidingView,
@@ -14,174 +10,354 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   TouchableWithoutFeedback,
-  View
+  View,
+  Alert,
+  ActivityIndicator,
 } from 'react-native';
 import InputField from '../../components/ui/InputField';
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import { useUser } from '@/context/UserContext';
+import TopToast, { TopToastRef } from '../../components/ui/TopToast';
 
 type ToggleMode = 'login' | 'signup';
-
+type SocialProvider = 'google' | 'apple' | 'facebook';
 
 export default function AuthScreen() {
-  const { setGuestMode } = useUser();
+  const router = useRouter();
+  const { setGuestMode, login, signup, socialLogin } = useUser();
+
+  const toastRef = useRef<TopToastRef>(null);
+
   const [mode, setMode] = useState<ToggleMode>('login');
-
-  const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
-  const isLogin = mode === "login";
-
-  //form state
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [username, setUsername] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [formError, setFormError] = useState('');
+  const [socialLoading, setSocialLoading] = useState<SocialProvider | null>(null);
 
-  const usernameRef = useRef<TextInput>(null);
-  const emailRef = useRef<TextInput>(null);
-  const passwordRef = useRef<TextInput>(null);
-  const confirmPasswordRef = useRef<TextInput>(null);
-  //navigate to home screen as guest
-  const router = useRouter();
+  const isLogin = mode === 'login';
 
-  const dismissKeyboard = useCallback(() => Keyboard.dismiss(), []);
-
-  const toggleMode = (newMode: "login" | "signup") => {
-    if (mode === newMode) return;
+  const dismissKeyboard = useCallback(() => {
     Keyboard.dismiss();
+  }, []);
+
+  /* ============================
+     Validation
+  ============================ */
+  const validateForm = (): boolean => {
+    if (!email.trim() || !password.trim()) {
+      Alert.alert('Required Fields', 'Please enter both email and password.');
+      return false;
+    }
+
+    if (!isLogin && !username.trim()) {
+      Alert.alert('Required Fields', 'Please enter a username.');
+      return false;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      return false;
+    }
+
+    if (password.length < 6) {
+      Alert.alert('Weak Password', 'Password must be at least 6 characters long.');
+      return false;
+    }
+
+    return true;
+  };
+
+  /* Mode Toggle*/
+  const toggleMode = (newMode: ToggleMode) => {
+    if (mode === newMode) return;
+    dismissKeyboard();
+    setFormError('');
     setMode(newMode);
   };
 
-  return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss}>
-      <View style={styles.container}>
-        <StatusBar style='dark' />
+  /* Submit Handler*/
+  const handleSubmit = async () => {
+    setFormError('');
+    if (!validateForm()) return;
 
-        {/* Background Decorative Blob */}
+    setSubmitting(true);
+    dismissKeyboard();
+
+    try {
+      if (isLogin) {
+        const result = await login(email.trim(), password);
+
+        if (result.success) {
+          toastRef.current?.show('Welcome back! Happy to have you back.');
+          setTimeout(() => router.replace('/home/home'), 800);
+        } else {
+          setFormError(result.error || 'Invalid email or password.');
+        }
+      } else {
+        const result = await signup(email.trim(), password, username.trim());
+
+        if (result.success) {
+          toastRef.current?.show(
+            'Account created! 🎉 Please log in with your credentials.'
+          );
+          setUsername('');
+          setEmail('');
+          setPassword('');
+          setMode('login');
+        } else {
+          Alert.alert(
+            'Registration Failed',
+            result.error || 'Failed to create an account.'
+          );
+        }
+      }
+    } catch (err: any) {
+      Alert.alert(
+        'Connection Error',
+        err.message ||
+          'Unable to connect to the server. Please check your internet connection.'
+      );
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  /* Social Login*/
+  const handleSocialLogin = async (provider: SocialProvider) => {
+    setSocialLoading(provider);
+    dismissKeyboard();
+
+    try {
+      const result = await socialLogin(provider);
+
+      if (result.success) {
+        toastRef.current?.show(`Signed in with ${provider}! 👋`);
+        setTimeout(() => router.replace('/home/home'), 800);
+      } else if (
+        result.error &&
+        result.error !== 'Sign-in was cancelled'
+      ) {
+        Alert.alert('Sign-in Failed', result.error);
+      }
+    } catch (err: any) {
+      Alert.alert(
+        'Sign-in Error',
+        err.message || 'Unable to complete social sign-in.'
+      );
+    } finally {
+      setSocialLoading(null);
+    }
+  };
+
+  return (
+    <TouchableWithoutFeedback onPress={dismissKeyboard}>
+      <View style={styles.container}>
+        <StatusBar style="dark" />
+        <TopToast ref={toastRef} />
+
         <View style={styles.bgBlob} />
 
         <KeyboardAvoidingView
-          behavior={Platform.OS === "ios" ? "padding" : "height"}
+          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
           style={styles.keyboardView}
         >
           <View style={styles.formContainer}>
-
-            {/* FIXED HEADER - Always stays in the same position */}
+            {/* Header */}
             <View style={styles.fixedTop}>
-              {/*HEADER*/}
               <View style={styles.header}>
                 <Text style={styles.headerTitle}>Welcome</Text>
-                <Text style={styles.headerSubtitle}>Please sign in or create an account to continue</Text>
+                <Text style={styles.headerSubtitle}>
+                  Please sign in or create an account to continue
+                </Text>
               </View>
 
-              {/*MODE TOGGLE BUTTONS*/}
+              {/* Toggle Buttons */}
               <View style={styles.toggleContainer}>
-                <Pressable style={[styles.toggleBtn, isLogin && styles.toggleBtnActive]} onPress={() => toggleMode('login')}>
-                  <Text style={[styles.toggleText, isLogin && styles.toggleTextActive]}>Login</Text>
+                <Pressable
+                  style={[
+                    styles.toggleBtn,
+                    isLogin && styles.toggleBtnActive,
+                  ]}
+                  onPress={() => toggleMode('login')}
+                >
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      isLogin && styles.toggleTextActive,
+                    ]}
+                  >
+                    Login
+                  </Text>
                 </Pressable>
-                <Pressable style={[styles.toggleBtn, !isLogin && styles.toggleBtnActive]} onPress={() => toggleMode('signup')}>
-                  <Text style={[styles.toggleText, !isLogin && styles.toggleTextActive]}>Sign Up</Text>
+
+                <Pressable
+                  style={[
+                    styles.toggleBtn,
+                    !isLogin && styles.toggleBtnActive,
+                  ]}
+                  onPress={() => toggleMode('signup')}
+                >
+                  <Text
+                    style={[
+                      styles.toggleText,
+                      !isLogin && styles.toggleTextActive,
+                    ]}
+                  >
+                    Sign Up
+                  </Text>
                 </Pressable>
               </View>
             </View>
 
-            {/* SCROLLABLE FORM CONTENT - Only this part scrolls/shifts */}
+            {/* Scrollable Content */}
             <ScrollView
               contentContainerStyle={styles.scrollContent}
               showsVerticalScrollIndicator={false}
               keyboardShouldPersistTaps="handled"
             >
-
-              {/*FORM FIELDS*/}
               <View style={styles.formFields}>
                 {!isLogin && (
                   <InputField
-                    icon='person-outline'
-                    placeholder='Username'
+                    icon="person-outline"
+                    placeholder="Username"
                     value={username}
                     onChangeText={setUsername}
-                    autoCapitalize='words'
+                    autoCapitalize="words"
                   />
                 )}
+
                 <InputField
-                  icon='mail-outline'
-                  placeholder='Email'
+                  icon="mail-outline"
+                  placeholder="Email"
                   value={email}
-                  onChangeText={setEmail}
+                  onChangeText={(text) => {
+                    setFormError('');
+                    setEmail(text);
+                  }}
                   keyboardType="email-address"
-                  autoCapitalize='none'
+                  autoCapitalize="none"
                 />
+
                 <InputField
-                  icon='lock-closed-outline'
-                  placeholder='Password'
+                  icon="lock-closed-outline"
+                  placeholder="Password"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setFormError('');
+                    setPassword(text);
+                  }}
                   isPassword
                 />
 
-                {/*FORGOT PASSWORD */}
+                {formError ? (
+                  <View style={styles.errorContainer}>
+                    <Text style={styles.errorText}>{formError}</Text>
+                  </View>
+                ) : null}
+
                 {isLogin && (
                   <View style={styles.forgotPasswordContainer}>
-                    <Pressable>
-                      <Text style={styles.forgotPasswordText}>Forgot Password?</Text>
+                    <Pressable
+                      onPress={() =>
+                        router.push('/auth/forgot-password')
+                      }
+                    >
+                      <Text style={styles.forgotPasswordText}>
+                        Forgot Password?
+                      </Text>
                     </Pressable>
                   </View>
                 )}
               </View>
 
-              {/*SUBMIT BUTTON*/}
-              <Pressable style={styles.buttonShadow}>
+              {/* Submit Button */}
+              <Pressable
+                style={styles.buttonShadow}
+                onPress={handleSubmit}
+                disabled={submitting}
+              >
                 <LinearGradient
                   colors={themes.light.gradients.primary}
                   start={{ x: 0, y: 0 }}
                   end={{ x: 1, y: 0 }}
-                  style={styles.button}>
-                  <Text style={styles.buttonText}>{isLogin ? 'Login' : 'Sign Up'}</Text>
+                  style={styles.button}
+                >
+                  {submitting ? (
+                    <ActivityIndicator size="small" color="#fff" />
+                  ) : (
+                    <Text style={styles.buttonText}>
+                      {isLogin ? 'Login' : 'Sign Up'}
+                    </Text>
+                  )}
                 </LinearGradient>
               </Pressable>
 
-              {/*DIVIDER */}
+              {/* Divider */}
               <View style={styles.dividerContainer}>
                 <View style={styles.dividerLine} />
-                <Text style={styles.dividerText}>Or continue with</Text>
+                <Text style={styles.dividerText}>
+                  Or continue with
+                </Text>
                 <View style={styles.dividerLine} />
               </View>
 
-              {/*SOCIAL LOGIN BUTTONS*/}
+              {/* Social Buttons */}
               <View style={styles.socialRow}>
-                <Pressable style={styles.socialBtn}>
-                  <Ionicons name="logo-google" size={22} color={themes.light.colors.primary} />
-                </Pressable>
-                <Pressable style={styles.socialBtn}>
-                  <Ionicons name="logo-apple" size={22} color={themes.light.colors.primary} />
-                </Pressable>
-                <Pressable style={styles.socialBtn}>
-                  <Ionicons name="logo-facebook" size={22} color={themes.light.colors.primary} />
-                </Pressable>
+                {(['google', 'apple', 'facebook'] as SocialProvider[]).map(
+                  (provider) => (
+                    <Pressable
+                      key={provider}
+                      style={styles.socialBtn}
+                      onPress={() => handleSocialLogin(provider)}
+                      disabled={!!socialLoading}
+                    >
+                      {socialLoading === provider ? (
+                        <ActivityIndicator
+                          size="small"
+                          color={themes.light.colors.primary}
+                        />
+                      ) : (
+                        <Ionicons
+                          name={`logo-${provider}` as any}
+                          size={22}
+                          color={themes.light.colors.primary}
+                        />
+                      )}
+                    </Pressable>
+                  )
+                )}
               </View>
 
-              {/*GUEST LOGIN*/}
+              {/* Guest Mode */}
               {isLogin && (
-                <Pressable style={styles.guestBtn} onPress={() => {
-                  setGuestMode(true);
-                  router.replace('/home/home');
-                }}>
-                  <Ionicons name="arrow-forward-outline" size={16} color={themes.light.colors.primaryAlt} />
-                  <Text style={styles.guestText}>Continue as Guest</Text>
+                <Pressable
+                  style={styles.guestBtn}
+                  onPress={() => {
+                    setGuestMode(true);
+                    router.replace('/home/home');
+                  }}
+                >
+                  <Ionicons
+                    name="arrow-forward-outline"
+                    size={16}
+                    color={themes.light.colors.primaryAlt}
+                  />
+                  <Text style={styles.guestText}>
+                    Continue as Guest
+                  </Text>
                 </Pressable>
               )}
-
             </ScrollView>
-
           </View>
         </KeyboardAvoidingView>
-
       </View>
     </TouchableWithoutFeedback>
   );
-
 }
 
 const styles = StyleSheet.create({
@@ -206,14 +382,13 @@ const styles = StyleSheet.create({
   keyboardView: {
     flex: 1,
   },
-    fixedTop: {
+  fixedTop: {
     paddingHorizontal: 24,
     paddingTop: 150,
   },
   scrollContent: {
     flexGrow: 1,
     paddingHorizontal: 24,
-    paddingTop: 0,
   },
   header: {
     marginBottom: 40,
@@ -249,11 +424,6 @@ const styles = StyleSheet.create({
   },
   toggleBtnActive: {
     backgroundColor: themes.light.colors.primary,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.8,
-    shadowRadius: 4,
-    elevation: 3,
   },
   toggleText: {
     fontSize: 16,
@@ -278,14 +448,8 @@ const styles = StyleSheet.create({
   },
   buttonShadow: {
     marginBottom: 32,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.3,
-    shadowRadius: 12,
-    elevation: 8,
   },
   button: {
-    backgroundColor: themes.light.colors.primary,
     borderRadius: 30,
     justifyContent: 'center',
     alignItems: 'center',
@@ -338,5 +502,13 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-
+  errorContainer: {
+    marginTop: 10,
+    paddingHorizontal: 8,
+  },
+  errorText: {
+    color: '#ff4d4f',
+    fontSize: 14,
+    fontWeight: '600',
+  },
 });
